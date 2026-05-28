@@ -12,10 +12,14 @@ from agents.peer_agent import run_p2p_exchange
 from benchmarks.prompts import SIMPLE_PROMPTS, COMPLEX_PROMPTS, IMAGE_PROMPTS
 
 NETWORK_CONDITIONS = [
-    "baseline",
-    "100ms_delay",
-    "jitter_50ms_gaussian",
+    {"name": "baseline",             "cmd": None},
+    {"name": "100ms_delay",          "cmd": "sudo tc qdisc add dev lo root netem delay 100ms"},
+    {"name": "jitter_50ms_gaussian", "cmd": "sudo tc qdisc add dev lo root netem delay 100ms 50ms distribution normal"},
+    {"name": "packet_loss_5percent", "cmd": "sudo tc qdisc add dev lo root netem loss 5%"},
+    {"name": "iot_edge_extreme",     "cmd": "sudo tc qdisc add dev lo root netem delay 500ms loss 2% rate 256kbit"}
 ]
+
+RESET_CMD = "sudo tc qdisc del dev lo root 2>/dev/null; true"
 
 # All peer pairs for 3 agents
 PEER_PAIRS = [
@@ -24,9 +28,21 @@ PEER_PAIRS = [
     ("peer_agent_1", "peer_agent_3"),
 ]
 
+
+def apply_network(condition):
+    os.system(RESET_CMD)
+    if condition["cmd"]:
+        os.system(condition["cmd"])
+        time.sleep(1)
+    print(f"\n>>> Network condition: {condition['name']}")
+
+
+def reset_network():
+    os.system(RESET_CMD)
+
+
 def run_p2p_benchmark():
     results = []
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # Combine all prompts and standardise the dictionary structure
     all_prompts = (
@@ -39,8 +55,10 @@ def run_p2p_benchmark():
     count = 0
 
     for condition in NETWORK_CONDITIONS:
+        apply_network(condition)
+
         print(f"\n{'='*60}")
-        print(f"Network Condition: {condition}")
+        print(f"Network Condition: {condition['name']}")
         print(f"{'='*60}")
 
         for prompt in all_prompts:
@@ -56,16 +74,15 @@ def run_p2p_benchmark():
                         topic=prompt["text"],
                         my_id=my_id,
                         peer_id=peer_id,
-                        network_condition=condition,
+                        network_condition=condition["name"],
                         max_rounds=3,
-                        image_path=prompt["image_path"] 
+                        image_path=prompt["image_path"]
                     )
                     total_time = round((time.time() - start) * 1000, 2)
 
                     row = {
-                        "timestamp": timestamp,
                         "pattern": "peer_to_peer",
-                        "network_condition": condition,
+                        "network_condition": condition["name"],
                         "prompt_type": prompt["type"],
                         "prompt_index": prompt["index"],
                         "prompt_length": len(prompt["text"]),
@@ -81,9 +98,8 @@ def run_p2p_benchmark():
                 except Exception as e:
                     print(f"  → FAILED: {e}")
                     results.append({
-                        "timestamp": timestamp,
                         "pattern": "peer_to_peer",
-                        "network_condition": condition,
+                        "network_condition": condition["name"],
                         "prompt_type": prompt["type"],
                         "prompt_index": prompt["index"],
                         "prompt_length": len(prompt["text"]),
@@ -94,12 +110,14 @@ def run_p2p_benchmark():
                         "total_time_ms": None,
                     })
 
+        reset_network()
+
     # Save results
     out_dir = "/home/jovyan/multi_agent_benchmark/benchmarks/results"
     os.makedirs(out_dir, exist_ok=True)
 
-    json_path = f"{out_dir}/benchmark_results_{timestamp}.json"
-    csv_path  = f"{out_dir}/benchmark_results_{timestamp}.csv"
+    json_path = f"{out_dir}/p2p_results_benchmark.json"
+    csv_path  = f"{out_dir}/p2p_results_benchmark.csv"
 
     existing = []
     if os.path.exists(json_path):
@@ -122,6 +140,6 @@ def run_p2p_benchmark():
     print(f"JSON → {json_path}")
     print(f"CSV  → {csv_path}")
 
-# THIS IS THE CRUCIAL FIX THAT MAKES THE SCRIPT RUN
+
 if __name__ == "__main__":
     run_p2p_benchmark()
