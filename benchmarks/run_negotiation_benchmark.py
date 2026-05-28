@@ -12,10 +12,27 @@ from agents.negotiation_agent import run_negotiation
 from benchmarks.prompts import SIMPLE_PROMPTS, COMPLEX_PROMPTS, IMAGE_PROMPTS
 
 NETWORK_CONDITIONS = [
-    "baseline",
-    "100ms_delay",
-    "jitter_50ms_gaussian",
+    {"name": "baseline",             "cmd": None},
+    {"name": "100ms_delay",          "cmd": "sudo tc qdisc add dev lo root netem delay 100ms"},
+    {"name": "jitter_50ms_gaussian", "cmd": "sudo tc qdisc add dev lo root netem delay 100ms 50ms distribution normal"},
+    {"name": "packet_loss_5percent", "cmd": "sudo tc qdisc add dev lo root netem loss 5%"},
+    {"name": "iot_edge_extreme",     "cmd": "sudo tc qdisc add dev lo root netem delay 500ms loss 2% rate 256kbit"}
 ]
+
+RESET_CMD = "sudo tc qdisc del dev lo root 2>/dev/null; true"
+
+
+def apply_network(condition):
+    os.system(RESET_CMD)
+    if condition["cmd"]:
+        os.system(condition["cmd"])
+        time.sleep(1)
+    print(f"\n>>> Network condition: {condition['name']}")
+
+
+def reset_network():
+    os.system(RESET_CMD)
+
 
 def generate_sample_images():
     """Generate sample images for llava testing if they don't exist."""
@@ -105,8 +122,10 @@ def run_negotiation_benchmark():
     count = 0
 
     for condition in NETWORK_CONDITIONS:
+        apply_network(condition)
+
         print(f"\n{'='*60}")
-        print(f"Network Condition: {condition}")
+        print(f"Network Condition: {condition['name']}")
         print(f"{'='*60}")
 
         for prompt in all_prompts:
@@ -120,7 +139,7 @@ def run_negotiation_benchmark():
                 start = time.time()
                 result = run_negotiation(
                     topic=prompt["text"],
-                    network_condition=condition,
+                    network_condition=condition["name"],
                     max_rounds=4,
                     image_path=prompt["image_path"]
                 )
@@ -129,7 +148,7 @@ def run_negotiation_benchmark():
                 row = {
                     "timestamp": timestamp,
                     "pattern": "negotiation",
-                    "network_condition": condition,
+                    "network_condition": condition["name"],
                     "prompt_type": prompt["type"],
                     "prompt_index": prompt["index"],
                     "prompt_length": len(prompt["text"]),
@@ -147,7 +166,7 @@ def run_negotiation_benchmark():
                 results.append({
                     "timestamp": timestamp,
                     "pattern": "negotiation",
-                    "network_condition": condition,
+                    "network_condition": condition["name"],
                     "prompt_type": prompt["type"],
                     "prompt_index": prompt["index"],
                     "prompt_length": len(prompt["text"]),
@@ -158,12 +177,14 @@ def run_negotiation_benchmark():
                     "total_time_ms": None,
                 })
 
+        reset_network()
+
     # Save results
     out_dir = "/home/jovyan/multi_agent_benchmark/benchmarks/results"
     os.makedirs(out_dir, exist_ok=True)
 
-    json_path = f"{out_dir}/benchmark_results.json"
-    csv_path  = f"{out_dir}/benchmark_results.csv"
+    json_path = f"{out_dir}/benchmark_negotiation_results.json"
+    csv_path  = f"{out_dir}/benchmark_negotiation_results.csv"
 
     existing = []
     if os.path.exists(json_path):
