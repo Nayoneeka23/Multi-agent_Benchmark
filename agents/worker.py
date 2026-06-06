@@ -12,16 +12,9 @@ WORKER_ID = "worker_1"
 MODEL = "mistral"
 
 MODEL_MAP = {
-    "worker_1":  "mistral",
-    "worker_2":  "tinyllama",
-    "worker_3":  "phi3",
-    "worker_4":  "gemma:2b",
-    "worker_5":  "qwen:1.8b",
-    "worker_6":  "llava",
-    "worker_7":  "mistral",
-    "worker_8":  "tinyllama",
-    "worker_9":  "phi3",
-    "worker_10": "gemma:2b"
+    "worker_1": "mistral",
+    "worker_2": "mistral",
+    "worker_3": "llava",
 }
 
 class Message(BaseModel):
