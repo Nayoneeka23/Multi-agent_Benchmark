@@ -33,9 +33,9 @@ Workers 1–2 use **Mistral** and worker 3 uses **LLaVA** in the checked-in code
 
 The charts below use the **checked-in CSV datasets**, not synthetic measurements. All plotted numbers are averages of recorded run times (seconds).
 
-![Mean time by network condition](assets/latency_comparison.png)
+![Mean time by network condition](Assets/latency_comparison.png)
 
-![Slowdown relative to baseline](assets/slowdown.png)
+![Slowdown relative to baseline](Assets/slowdown.png)
 
 | Measured pattern | Baseline | IoT extreme | Slowdown |
 |---|---:|---:|---:|
